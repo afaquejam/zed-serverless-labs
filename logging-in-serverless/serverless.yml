@@ -29,15 +29,35 @@ functions:
     - Effect: 'Allow'
       Action:
         - "dynamodb:GetItem"
-        - "dynamodb:PutItem"
-        - "dynamodb:UpdateItem"
-        - "dynamodb:DeleteItem"
         - "dynamodb:Query"
         - "dynamodb:Scan"
       Resource:
         Fn::GetAtt:
           - MeasurementsTable
           - Arn
+  storeMeasurements:
+    handler: handler.storeMeasurements
+    events:
+      - http:
+          path: /measurements
+          method: post
+    iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+      Resource:
+        Fn::GetAtt:
+          - MeasurementsTable
+          - Arn
+
+  computeAggregate:
+    handler: handler.computeAggregate
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt: [MeasurementsTable, StreamArn]
 
 resources:
   Resources:
@@ -62,3 +82,5 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+        StreamSpecification:
+           StreamViewType: NEW_IMAGE
