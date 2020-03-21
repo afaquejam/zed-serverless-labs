@@ -1,0 +1,64 @@
+service: serverless-logging
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-lumigo
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: eu-central-1
+  environment:
+    STAGE: ${opt:stage, self:provider.stage}
+    MEASUREMENTS_TABLE: learnDdb-measurements-${self:provider.stage}
+
+custom:
+  lumigo:
+    token: ${env:LUMIGO_TOKEN}
+    nodePackageManager: yarn
+
+functions:
+  getMeasurements:
+    handler: handler.getMeasurements
+    events:
+      - http:
+          path: /measurements
+          method: get
+    iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:DeleteItem"
+        - "dynamodb:Query"
+        - "dynamodb:Scan"
+      Resource:
+        Fn::GetAtt:
+          - MeasurementsTable
+          - Arn
+
+resources:
+  Resources:
+    MeasurementsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: learnDdb-measurements-${self:provider.stage}
+        AttributeDefinitions:
+          -
+            AttributeName: deviceId
+            AttributeType: S
+          -
+            AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          -
+            AttributeName: deviceId
+            KeyType: HASH
+          -
+            AttributeName: timestamp
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
