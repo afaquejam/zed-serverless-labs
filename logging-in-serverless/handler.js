@@ -73,7 +73,13 @@ module.exports.storeMeasurements = wrap(async (event) => {
 });
 
 module.exports.computeAggregate = wrap(async (event) => {
-  Log.info(event);
+  /**
+   * Since this lambda function is invoked in a batch, each record item
+   * will have a logger attribute, which contains correlation Id.
+   */
+  event.Records.forEach((item) => {
+    item.logger.info('Individual record item');
+  });
 
   return {
     statusCode: 200,
