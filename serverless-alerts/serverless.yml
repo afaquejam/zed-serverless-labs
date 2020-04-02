@@ -1,0 +1,31 @@
+service: serverless-alerts
+
+plugins:
+  - serverless-plugin-aws-alerts
+
+custom:
+  alerts:
+    stages:
+      - dev
+    topics:
+      alarm:
+        topic: ${self:service}-${self:provider.stage}-alerts-alarm
+        notifications:
+          - protocol: email
+            endpoint: email@domain.com
+    alarms:
+      - functionErrors
+      - functionThrottles
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+        - http:
+            path: /message
+            method: get

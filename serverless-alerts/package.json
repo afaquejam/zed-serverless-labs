@@ -1,0 +1,9 @@
+{
+  "name": "serverless-alerts",
+  "version": "1.0.0",
+  "main": "handler.js",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless-plugin-aws-alerts": "^1.4.0"
+  }
+}
