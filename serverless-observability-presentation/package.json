@@ -1,0 +1,13 @@
+{
+  "name": "presentation-markdown-template",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "present": "reveal-md slides.md --theme solarized",
+    "export": "reveal-md slides.md --print slides.pdf --theme solarized"
+  },
+  "dependencies": {
+    "reveal-md": "^3.4.7"
+  }
+}
