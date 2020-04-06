@@ -9,6 +9,15 @@ provider:
   runtime: nodejs12.x
   stage: dev
   region: eu-central-1
+  tracing:
+    apiGateway: true
+    lambda: true
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: "*"
   environment:
     STAGE: ${opt:stage, self:provider.stage}
     MEASUREMENTS_TABLE: learnDdb-measurements-${self:provider.stage}
@@ -17,6 +26,8 @@ custom:
   lumigo:
     token: ${env:LUMIGO_TOKEN}
     nodePackageManager: yarn
+  serverless-iam-roles-per-function:
+    defaultInherit: true
 
 functions:
   getMeasurements:
