@@ -89,7 +89,7 @@ Let's see how X-Ray traces this example service:
 
 ![lumigo-map](img/tracing-in-lumigo.png)
 
----
+----
 
 ## Lumigo
 
@@ -99,38 +99,93 @@ Let's see how X-Ray traces this example service:
 
 ## Logging
 
-* Services we use
-  - API GW, Lambda, DynamoDB, Cognito, S3
+* AWS services we use:
+  - Cognito, API Gateway, Lambda
+  - DynamoDB, S3
   - AWS IoT, Kinesis Firehose
-* Enabled logging on all those services?
+* Enable logging on all those services?
 
 ----
 
 ## Logging
 
-* Current log information.
-* Improvement.
+* Log levels we have mostly used:
+```
+log.info()
+log.error()
+```
+* Default log level: `info`
+* Suppose we want to debug a lambda function in production. How do we change the log-level?
+* Other log-levels which we can take into use:
+```
+log.debug()
+log.warn()
+```
 
 ----
 
 ## Logging
-
-* Capturing and forwarding correlation Ids.
+* Log message example
+```
+{
+    "error": {
+        "code": "CUSTOMER_NOT_FOUND",
+        "message": "CustomerId abc not found in this deployment!"
+    },
+    "level": "error",
+    "message": "Error processing the record",
+    "timestamp": "2020-03-25T06:15:43.786Z",
+    "module": "lib/measurement-functions"
+}
+```
 
 ----
 
 ## Logging
-
-* Logging guidelines.
-* Setting default log level.
-* Sampling debug logs.
+* Improved logging using [DAZN Lambda Power Tools](https://github.com/getndazn/dazn-lambda-powertools)
+```
+{
+    "message": "The dynamodb put parameters are:",
+    "TableName": "learnDdb-measurements-dev",
+    "Item": {
+        "deviceId": "RFL100-P54321",
+        "timestamp": 1584805871705,
+        "temperature": 59,
+        "lightIntensity": 37,
+        "soundIntensity": 4
+    },
+    "awsRegion": "eu-central-1",
+    "functionName": "serverless-logging-dev-storeMeasurements",
+    "functionVersion": "$LATEST",
+    "functionMemorySize": "1024",
+    "environment": "dev",
+    "awsRequestId": "d270e569-6fca-4803-8feb-63b529755a9c",
+    "apiGatewayRequestId": "7f87c935-21d0-4838-b0f8-838ef992f796",
+    "x-correlation-id": "7f87c935-21d0-4838-b0f8-838ef992f796",
+    "User-Agent": "PostmanRuntime/7.23.0",
+    "debug-log-enabled": "false",
+    "call-chain-length": 1,
+    "level": 20,
+    "sLevel": "DEBUG"
+}
+```
 
 ----
 
-## Logging
+## Logging Best Practices
 
-* Exporting logs to a different log analysis service?
-* If so, then we set log expiration policy as well.
+* Capture and forward correlation Ids.
+  - Let's see a demo using this example service.
+  - ![architecture](img/serverless-logging.png)
+
+----
+
+## Logging Best Practices
+* Sample debug logs.
+* Don't log confidential information.
+* Centralized logging
+  - Use a log analytics service.
+  - Setting Cloudwatch log expiration policy.
 
 ---
 
