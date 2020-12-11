@@ -28,14 +28,12 @@
 
 ---
 
-## Dashboard & Alerts
+## Alerts
 
 * AWS services we use:
   - Cognito, API Gateway, Lambda
   - DynamoDB, S3
   - AWS IoT, Kinesis Firehose
-* AWS Lambda Service Console: Applications View
-  - View metrics of AWS services used in each of our application service.
 
 ----
 

@@ -1,0 +1,186 @@
+service: nrt-iot-data-pipeline
+
+plugins:
+  modules:
+    - serverless-pseudo-parameters
+
+custom:
+  records:
+    delimiter: "\n"
+  dynamoDb:
+    tables:
+      RawMeasurementsTable:
+        name: nrt-raw-measurements-${self:provider.stage}
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: eu-central-1
+  stage: dev
+
+resources:
+  Resources:
+    RawMeasurementsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.dynamoDb.tables.RawMeasurementsTable.name}
+        AttributeDefinitions:
+          - AttributeName: deviceId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: deviceId
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    IngestMeasurementsToFirehoseIoTRule:
+      Type: AWS::IoT::TopicRule
+      Properties:
+        RuleName: IngestMeasurementsToFirehose_${self:provider.stage}
+        TopicRulePayload:
+          AwsIotSqlVersion: '2016-03-23'
+          RuleDisabled: 'false'
+          Sql: !Sub 'SELECT deviceId, timestamp, temperature, humidity FROM "dt/measurements"'
+          Actions:
+            - Firehose:
+                DeliveryStreamName: !Ref MeasurementsDeliveryStream
+                RoleArn: { Fn::GetAtt: [IngestMeasurementsToFirehoseRole, Arn] }
+                Separator: ${self:custom.records.delimiter}
+
+    IngestMeasurementsToFirehoseRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - 'iot.amazonaws.com'
+              Action:
+                - 'sts:AssumeRole'
+        Policies:
+          - PolicyName: ingest-measurements-to-firehose-policy-${self:provider.stage}
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - firehose:DescribeDeliveryStream
+                    - firehose:ListDeliveryStreams
+                    - firehose:PutRecord
+                    - firehose:PutRecordBatch
+                  Resource: { Fn::GetAtt: [MeasurementsDeliveryStream, Arn] }
+
+    IngestMeasurementsToDynamodbIoTRule:
+      Type: AWS::IoT::TopicRule
+      Properties:
+        RuleName: IngestMeasurementsToDynamodb_${self:provider.stage}
+        TopicRulePayload:
+          AwsIotSqlVersion: '2016-03-23'
+          RuleDisabled: 'false'
+          Sql: !Sub 'SELECT deviceId, timestamp, temperature, humidity FROM "dt/measurements"'
+          Actions:
+            - DynamoDBv2:
+                RoleArn: { Fn::GetAtt: [IngestMeasurementsToDynamodbRole, Arn] }
+                PutItem:
+                  TableName: ${self:custom.dynamoDb.tables.RawMeasurementsTable.name}
+
+    IngestMeasurementsToDynamodbRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - 'iot.amazonaws.com'
+              Action:
+                - 'sts:AssumeRole'
+        Policies:
+          - PolicyName: ingest-measurements-to-dynamodb-policy-${self:provider.stage}
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                  Resource: { Fn::GetAtt: [RawMeasurementsTable, Arn] }
+
+    FirehoseToS3Role:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: firehose-to-s3-role-${self:provider.stage}
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - firehose.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: firehose-to-s3-policy-${self:provider.stage}
+            PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:AbortMultipartUpload
+                    - s3:GetBucketLocation
+                    - s3:GetObject
+                    - s3:ListBucket
+                    - s3:ListBucketMultipartUploads
+                    - s3:PutObject
+                  Resource:
+                    - arn:aws:s3:::#{MeasurementsBucket}
+                    - arn:aws:s3:::#{MeasurementsBucket}/*
+
+    MeasurementsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: nrt-device-measurements-#{AWS::AccountId}-${self:provider.stage}
+
+    MeasurementsDeliveryStream:
+      Type: AWS::KinesisFirehose::DeliveryStream
+      Properties:
+        DeliveryStreamName: nrt-firehose-${self:provider.stage}
+        ExtendedS3DestinationConfiguration:
+          BucketARN: arn:aws:s3:::#{MeasurementsBucket}
+          BufferingHints:
+            IntervalInSeconds: '60'
+            SizeInMBs: '1'
+          CompressionFormat: 'UNCOMPRESSED'
+          Prefix: 'measurements/'
+          RoleARN: { Fn::GetAtt: [FirehoseToS3Role, Arn] }
+
+    NrtDatabase:
+      Type: 'AWS::Glue::Database'
+      Properties:
+        DatabaseInput:
+          Name: 'nrtdb'
+        CatalogId: '#{AWS::AccountId}'
+
+    # MeasurementsTable:
+    #   Type: 'AWS::Glue::Table'
+    #   Properties:
+    #     CatalogId: '#{AWS::AccountId}'
+    #     DatabaseName: 'nrtdb'
+    #     TableInput:
+    #       Name: 'measurements'
+    #       TableType: 'EXTERNAL_TABLE'
+    #       StorageDescriptor:
+    #         Location: arn:aws:s3:::#{MeasurementsBucket}/measurements
+    #         InputFormat: 'org.apache.hadoop.mapred.TextInputFormat'
+    #         OutputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+    #         SerdeInfo:
+    #           SerializationLibrary: 'org.apache.hive.hcatalog.data.JsonSerDe'
+    #         Parameters: { 'classification': 'json' }
+    #         Columns:
+    #           - Type: string
+    #             Name: deviceId
+    #           - Type: bigint
+    #             Name: timestamp

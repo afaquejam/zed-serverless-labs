@@ -1,0 +1,9 @@
+{
+  "name": "iot-data-pipeline",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "serverless-pseudo-parameters": "^2.5.0"
+  }
+}
