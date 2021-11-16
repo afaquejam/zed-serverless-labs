@@ -7,7 +7,7 @@
     "@dazn/lambda-powertools-dynamodb-client": "^1.18.0",
     "@dazn/lambda-powertools-logger": "^1.21.0",
     "@dazn/lambda-powertools-pattern-basic": "^1.21.0",
-    "aws-sdk": "^2.643.0",
+    "aws-sdk": "^2.814.0",
     "serverless-iam-roles-per-function": "^2.0.2",
     "serverless-lumigo": "^1.8.0"
   }
